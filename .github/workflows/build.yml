@@ -34,7 +34,7 @@ jobs:
       - name: Dry run
         run: python bindings/python/xva.py build/Release/xva.dll
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: xva-windows-x64
           path: |
