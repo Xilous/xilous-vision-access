@@ -42,7 +42,7 @@ constexpr double kJumpDurationSec = 0.08;
 struct InputEvent {
     enum class Kind { Button, Scroll };
     Kind kind;
-    int button;  // an xva_button value, for Kind::Button
+    int button;  // an xva_mouse_button value, for Kind::Button
     bool down;   // for Kind::Button
     int notches; // for Kind::Scroll
 };
@@ -297,7 +297,7 @@ XVA_API xva_status xva_gaze(xva_ctx *ctx, double x, double y) {
     return XVA_OK;
 }
 
-XVA_API xva_status xva_button(xva_ctx *ctx, xva_button button, int down) {
+XVA_API xva_status xva_button(xva_ctx *ctx, xva_mouse_button button, int down) {
     if (const xva_status status = check_usable(ctx); status != XVA_OK) return status;
     if (button != XVA_BUTTON_LEFT && button != XVA_BUTTON_RIGHT) return XVA_ERR_BAD_ARG;
     return queue_event(ctx, {InputEvent::Kind::Button, static_cast<int>(button), down != 0, 0});

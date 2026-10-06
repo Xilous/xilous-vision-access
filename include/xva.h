@@ -33,10 +33,10 @@ typedef enum xva_status {
     XVA_ERR_SYSTEM = 4     /* Windows refused a thread, timer or event, or memory ran out */
 } xva_status;
 
-typedef enum xva_button {
+typedef enum xva_mouse_button {
     XVA_BUTTON_LEFT = 0,
     XVA_BUTTON_RIGHT = 1
-} xva_button;
+} xva_mouse_button;
 
 /* Run without a driver: reports are computed and then discarded. For development and tests. */
 #define XVA_OPEN_DRY_RUN 0x1u
@@ -55,7 +55,7 @@ XVA_API void xva_close(xva_ctx *ctx);
 XVA_API xva_status xva_gaze(xva_ctx *ctx, double x, double y);
 
 /* Reports a real press (down = 1) or release (down = 0). Each call is delivered in order, immediately. */
-XVA_API xva_status xva_button(xva_ctx *ctx, xva_button button, int down);
+XVA_API xva_status xva_button(xva_ctx *ctx, xva_mouse_button button, int down);
 
 /* Scrolls by whole wheel notches: positive is up, negative is down, within -127..127. */
 XVA_API xva_status xva_scroll(xva_ctx *ctx, int notches);
