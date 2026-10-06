@@ -1,0 +1,44 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    # Windows, because xva.dll is built with MSVC against the Windows SDK and calls Win32 APIs.
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          architecture: x64
+
+      - name: Configure
+        run: cmake -B build -A x64
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Dry run
+        run: python bindings/python/xva.py build/Release/xva.dll
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: xva-windows-x64
+          path: |
+            build/Release/xva.dll
+            build/Release/xva.lib
+            include/xva.h
+            bindings/python/xva.py
