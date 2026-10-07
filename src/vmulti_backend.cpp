@@ -2,29 +2,21 @@
 #define NOMINMAX
 #include <windows.h>
 
-#include <hidsdi.h>
-#include <setupapi.h>
-
 #include "backend.hpp"
+#include "vmulti_device.hpp"
 
 #include <algorithm>
 #include <array>
 #include <chrono>
 #include <cmath>
 #include <utility>
-#include <vector>
 
 namespace xva {
 namespace {
 
-// These values come from the device attributes and report descriptor compiled into the signed
-// vmulti.sys that X9VoiD/vmulti-bin distributes (catalog pentablethid.cat, hardware ID pentablet\hid).
-// Other VMulti builds use other report IDs and layouts.
-constexpr USHORT kVendorId = 0x00FF;
-constexpr USHORT kProductId = 0xBACC;
-constexpr USHORT kControlUsagePage = 0xFF00;
-constexpr USHORT kControlUsage = 0x0001;
-constexpr DWORD kControlReportSize = 65;  // report ID 0x40 followed by 64 bytes
+// The report layout below comes from the report descriptor compiled into the signed vmulti.sys that
+// X9VoiD/vmulti-bin distributes. Other VMulti builds use other report IDs and layouts.
+constexpr DWORD kControlReportSize = kVMultiControlReportSize;  // report ID 0x40 followed by 64 bytes
 
 // A control report is: 0x40, the inner report's length (counting its own ID), then the inner report.
 constexpr BYTE kControlReportId = 0x40;
@@ -36,55 +28,6 @@ constexpr BYTE kRelativeMouseReportId = 0x04;
 constexpr BYTE kRelativeMouseReportLength = 5;
 
 using Report = std::array<BYTE, kControlReportSize>;
-
-bool is_control_collection(const wchar_t *path) {
-    // Zero access is enough to read attributes and capabilities, and it also works on the devices
-    // Windows holds exclusively, such as real keyboards and mice.
-    const HANDLE probe = CreateFileW(path, 0, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, 0, nullptr);
-    if (probe == INVALID_HANDLE_VALUE) return false;
-
-    bool match = false;
-    HIDD_ATTRIBUTES attributes{};
-    attributes.Size = sizeof(attributes);
-    PHIDP_PREPARSED_DATA preparsed = nullptr;
-    if (HidD_GetAttributes(probe, &attributes) && attributes.VendorID == kVendorId &&
-        attributes.ProductID == kProductId && HidD_GetPreparsedData(probe, &preparsed)) {
-        HIDP_CAPS caps{};
-        match = HidP_GetCaps(preparsed, &caps) == HIDP_STATUS_SUCCESS && caps.UsagePage == kControlUsagePage &&
-                caps.Usage == kControlUsage && caps.OutputReportByteLength == kControlReportSize;
-        HidD_FreePreparsedData(preparsed);
-    }
-    CloseHandle(probe);
-    return match;
-}
-
-HANDLE open_control_collection() {
-    GUID hid_guid;
-    HidD_GetHidGuid(&hid_guid);
-    const HDEVINFO devices = SetupDiGetClassDevsW(&hid_guid, nullptr, nullptr, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
-    if (devices == INVALID_HANDLE_VALUE) return INVALID_HANDLE_VALUE;
-
-    HANDLE found = INVALID_HANDLE_VALUE;
-    SP_DEVICE_INTERFACE_DATA interface_data{};
-    interface_data.cbSize = sizeof(interface_data);
-    for (DWORD i = 0; found == INVALID_HANDLE_VALUE &&
-                      SetupDiEnumDeviceInterfaces(devices, nullptr, &hid_guid, i, &interface_data);
-         ++i) {
-        DWORD needed = 0;
-        SetupDiGetDeviceInterfaceDetailW(devices, &interface_data, nullptr, 0, &needed, nullptr);
-        if (needed < sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA_W)) continue;
-        std::vector<BYTE> buffer(needed);
-        auto *detail = reinterpret_cast<SP_DEVICE_INTERFACE_DETAIL_DATA_W *>(buffer.data());
-        detail->cbSize = sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA_W);
-        if (!SetupDiGetDeviceInterfaceDetailW(devices, &interface_data, detail, needed, nullptr, nullptr)) continue;
-        if (is_control_collection(detail->DevicePath)) {
-            found = CreateFileW(detail->DevicePath, GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
-                                OPEN_EXISTING, 0, nullptr);
-        }
-    }
-    SetupDiDestroyDeviceInfoList(devices);
-    return found;
-}
 
 BOOL CALLBACK add_monitor(HMONITOR, HDC, LPRECT rect, LPARAM data) {
     UnionRect(reinterpret_cast<RECT *>(data), reinterpret_cast<RECT *>(data), rect);
@@ -189,7 +132,7 @@ private:
 }  // namespace
 
 std::unique_ptr<Backend> open_vmulti_backend() {
-    const HANDLE device = open_control_collection();
+    const HANDLE device = open_vmulti_control(GENERIC_WRITE);
     if (device == INVALID_HANDLE_VALUE) return nullptr;
     return std::make_unique<VMultiBackend>(device);
 }

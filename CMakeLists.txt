@@ -12,18 +12,28 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Redistributable. Python ships only part of that runtime, not msvcp140.dll, which std::thread needs.
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
+if(MSVC)
+    add_compile_options(/W4 /permissive-)
+endif()
+add_compile_definitions(UNICODE _UNICODE)
+
+# Finds the VMulti device; shared by the DLL and the setup program.
+add_library(vmulti_device OBJECT src/vmulti_device.cpp)
+target_include_directories(vmulti_device PUBLIC src)
+target_link_libraries(vmulti_device PUBLIC hid setupapi)
+
 add_library(xva SHARED
     src/xva.cpp
     src/backends.cpp
     src/vmulti_backend.cpp
 )
-target_include_directories(xva
-    PUBLIC include
-    PRIVATE src
-)
-target_compile_definitions(xva PRIVATE XVA_BUILD UNICODE _UNICODE)
-target_link_libraries(xva PRIVATE hid setupapi)
+target_include_directories(xva PUBLIC include)
+target_compile_definitions(xva PRIVATE XVA_BUILD)
+target_link_libraries(xva PRIVATE vmulti_device)
 
+# Installs and removes the VMulti driver; always runs elevated.
+add_executable(xva-setup setup/xva_setup.cpp)
+target_link_libraries(xva-setup PRIVATE vmulti_device newdev bcrypt wintrust crypt32 urlmon ole32)
 if(MSVC)
-    target_compile_options(xva PRIVATE /W4 /permissive-)
+    target_link_options(xva-setup PRIVATE "/MANIFESTUAC:level='requireAdministrator'")
 endif()

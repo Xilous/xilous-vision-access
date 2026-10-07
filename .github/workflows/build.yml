@@ -40,5 +40,6 @@ jobs:
           path: |
             build/Release/xva.dll
             build/Release/xva.lib
+            build/Release/xva-setup.exe
             include/xva.h
             bindings/python/xva.py
