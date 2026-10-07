@@ -52,6 +52,7 @@ constexpr wchar_t kProductKey[] = L"SOFTWARE\\XilousVisionAccess";
 constexpr wchar_t kOwnershipKey[] = L"SOFTWARE\\XilousVisionAccess\\Setup";
 
 constexpr DWORD kMaxDeviceIdLength = 200;  // MAX_DEVICE_ID_LEN
+constexpr DWORD kMaxClassNameLength = 32;  // MAX_CLASS_NAME_LEN
 constexpr DWORD kStartTimeoutMs = 15000;
 
 constexpr int kExitOk = 0;
@@ -288,8 +289,8 @@ struct InstalledDevice {
 // the hardware ID, then installs the driver package onto it.
 InstalledDevice install_device(const std::wstring &inf) {
     GUID class_guid;
-    wchar_t class_name[MAX_CLASS_NAME_LEN];
-    if (!SetupDiGetINFClassW(inf.c_str(), &class_guid, class_name, MAX_CLASS_NAME_LEN, nullptr)) {
+    wchar_t class_name[kMaxClassNameLength];
+    if (!SetupDiGetINFClassW(inf.c_str(), &class_guid, class_name, kMaxClassNameLength, nullptr)) {
         fail_last_error(L"Reading the driver's INF file");
     }
     const HDEVINFO devices = SetupDiCreateDeviceInfoList(&class_guid, nullptr);
