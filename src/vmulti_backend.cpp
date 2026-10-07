@@ -19,7 +19,7 @@ namespace {
 
 // These values come from the device attributes and report descriptor compiled into the signed
 // vmulti.sys that X9VoiD/vmulti-bin distributes (catalog pentablethid.cat, hardware ID pentablet\hid).
-// Other VMulti builds use other report IDs and layouts; see docs/design.md.
+// Other VMulti builds use other report IDs and layouts.
 constexpr USHORT kVendorId = 0x00FF;
 constexpr USHORT kProductId = 0xBACC;
 constexpr USHORT kControlUsagePage = 0xFF00;
