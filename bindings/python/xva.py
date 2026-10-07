@@ -9,7 +9,8 @@ Typical use from the main application:
         xva.scroll(-1)                 # one notch down
 
 Running this file directly opens XVA in dry-run mode, which needs no driver, and prints how the
-cursor follows a gaze that rests and then jumps.
+cursor follows a gaze that rests and then jumps. With --live it drives the real cursor through the
+installed driver instead, without clicking, and checks where Windows actually put it.
 """
 
 import ctypes
@@ -91,6 +92,34 @@ def _dry_run(dll_path):
         print("clicked")
 
 
+def _live(dll_path):
+    from ctypes import wintypes
+
+    user32 = ctypes.windll.user32
+    # Per-monitor DPI awareness, so the cursor and monitor size below are in physical pixels.
+    user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))
+    width, height = user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
+
+    worst = 0.0
+    with Xva(dll_path) as xva:
+        for target in [(0.5, 0.5), (0.25, 0.25), (0.75, 0.25), (0.75, 0.75), (0.25, 0.75), (0.5, 0.5)]:
+            started = time.perf_counter()
+            while time.perf_counter() - started < 0.4:
+                xva.gaze(*target)
+                time.sleep(1 / 60)
+            point = wintypes.POINT()
+            user32.GetCursorPos(ctypes.byref(point))
+            expected = (target[0] * (width - 1), target[1] * (height - 1))
+            off = max(abs(point.x - expected[0]), abs(point.y - expected[1]))
+            worst = max(worst, off)
+            print(f"gaze {target}  expected ({expected[0]:.0f}, {expected[1]:.0f})  "
+                  f"actual ({point.x}, {point.y})  off by {off:.0f} px")
+    print(f"primary monitor {width}x{height}, worst error {worst:.0f} px")
+    if worst > 3:
+        sys.exit("the cursor did not land where XVA sent it")
+
+
 if __name__ == "__main__":
-    default = Path(__file__).resolve().parents[2] / "build" / "Release" / "xva.dll"
-    _dry_run(sys.argv[1] if len(sys.argv) > 1 else default)
+    args = [a for a in sys.argv[1:] if a != "--live"]
+    dll = args[0] if args else Path(__file__).resolve().parents[2] / "build" / "Release" / "xva.dll"
+    _live(dll) if "--live" in sys.argv else _dry_run(dll)

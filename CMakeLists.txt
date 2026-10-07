@@ -15,12 +15,14 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 add_library(xva SHARED
     src/xva.cpp
     src/backends.cpp
+    src/vmulti_backend.cpp
 )
 target_include_directories(xva
     PUBLIC include
     PRIVATE src
 )
 target_compile_definitions(xva PRIVATE XVA_BUILD UNICODE _UNICODE)
+target_link_libraries(xva PRIVATE hid setupapi)
 
 if(MSVC)
     target_compile_options(xva PRIVATE /W4 /permissive-)
